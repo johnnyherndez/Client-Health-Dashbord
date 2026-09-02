@@ -1,0 +1,2143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HireOverseas — Client Health &amp; Churn Risk</title>
+<style>
+  :root{
+    --bg: #f5f6f4;
+    --panel: #ffffff;
+    --ink: #1b2226;
+    --ink-soft: #55605f;
+    --line: #dde1de;
+    --accent: #1f5f5b;
+    --accent-soft: #e4efed;
+    --high: #b23a2e;
+    --high-bg: #fbeae7;
+    --med: #a8720f;
+    --med-bg: #fbf1de;
+    --low: #386a45;
+    --low-bg: #e9f3ea;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--bg);
+    color:var(--ink);
+    font-family: ui-sans-serif, system-ui, "Segoe UI", Helvetica, Arial, sans-serif;
+    line-height:1.5;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:1180px; margin:0 auto; padding:40px 28px 80px;}
+  header.page{border-bottom:1px solid var(--line); padding-bottom:28px; margin-bottom:28px;}
+  h1{font-size:28px; font-weight:700; margin:0 0 8px; letter-spacing:-0.01em;}
+  .lede{color:var(--ink-soft); font-size:15px; max-width:640px; margin:0 0 18px;}
+  .about{
+    background:var(--panel); border:1px solid var(--line); border-radius:6px;
+    padding:14px 18px; font-size:13.5px; color:var(--ink-soft); max-width:820px;
+  }
+  .about b{color:var(--ink); font-weight:600;}
+
+  .kpis{
+    display:flex; flex-wrap:wrap; gap:0; margin:28px 0 36px;
+    border-top:1px solid var(--line); border-bottom:1px solid var(--line);
+  }
+  .kpi{flex:1 1 160px; padding:18px 22px; border-right:1px solid var(--line);}
+  .kpi:last-child{border-right:none;}
+  .kpi .num{font-size:26px; font-weight:700; font-variant-numeric:tabular-nums; letter-spacing:-0.01em;}
+  .kpi .num.high{color:var(--high);}
+  .kpi .label{font-size:12.5px; color:var(--ink-soft); margin-top:2px;}
+
+  section{margin-bottom:44px;}
+  h2{font-size:18px; font-weight:700; margin:0 0 4px;}
+  .section-sub{color:var(--ink-soft); font-size:13.5px; margin:0 0 16px;}
+
+  .controls{display:flex; gap:10px; margin-bottom:14px; flex-wrap:wrap;}
+  .controls input, .controls select{
+    font-family:inherit; font-size:13.5px; padding:7px 10px;
+    border:1px solid var(--line); border-radius:5px; background:var(--panel); color:var(--ink);
+  }
+  .controls input{flex:1 1 220px; min-width:180px;}
+
+  table{width:100%; border-collapse:collapse; background:var(--panel); font-size:13.5px;}
+  th, td{padding:9px 12px; text-align:left; border-bottom:1px solid var(--line);}
+  th{font-weight:600; color:var(--ink-soft); font-size:12px; text-transform:none; border-bottom:1.5px solid var(--line); cursor:pointer; user-select:none; white-space:nowrap;}
+  th:hover{color:var(--ink);}
+  td.num, th.num{text-align:right; font-variant-numeric:tabular-nums;}
+  tbody tr:hover{background:#fafbfa;}
+  .badge{display:inline-block; padding:2px 9px; border-radius:100px; font-size:12px; font-weight:600;}
+  .badge.High{background:var(--high-bg); color:var(--high);}
+  .badge.Medium{background:var(--med-bg); color:var(--med);}
+  .badge.Low{background:var(--low-bg); color:var(--low);}
+  .factors{color:var(--ink-soft); font-size:12px;}
+  .factor-tag{display:inline-block; background:#f0f1ef; border-radius:4px; padding:1px 6px; margin:1px 3px 1px 0;}
+
+  .mismatch-list{display:flex; flex-direction:column; gap:0; background:var(--panel); border:1px solid var(--line); border-radius:6px; overflow:hidden;}
+  .mismatch-row{display:flex; justify-content:space-between; align-items:center; padding:11px 16px; border-bottom:1px solid var(--line); font-size:13.5px; gap:12px;}
+  .mismatch-row:last-child{border-bottom:none;}
+  .mismatch-row .company{font-weight:600;}
+  .mismatch-row .issue{color:var(--ink-soft); flex:1; text-align:right;}
+  .am-tag{font-size:11.5px; color:var(--ink-soft); background:#f0f1ef; border-radius:4px; padding:2px 7px; white-space:nowrap;}
+
+  .chart-box{background:var(--panel); border:1px solid var(--line); border-radius:6px; padding:20px;}
+  svg text{font-family:inherit; fill:var(--ink-soft); font-size:11px;}
+
+  footer{border-top:1px solid var(--line); padding-top:18px; margin-top:50px; color:var(--ink-soft); font-size:12.5px;}
+  footer p{margin:4px 0;}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="page">
+    <h1>Client Health &amp; Churn Risk</h1>
+    <p class="lede">A live view of every currently-billing client, scored on the signals most tied to churn in the history — tenure timing, satisfaction, contact recency, revenue trend, and role status.</p>
+    <div class="about">
+      <b>What this answers:</b> which active clients are quietly at risk right now, and which CRM records are already wrong.
+      <b>Who uses it:</b> account managers and leadership, in weekly pipeline/retention review.
+      <b>Decision it improves:</b> who gets a proactive check-in call this week, and which client records need a status correction before they distort forecasting.
+    </div>
+  </header>
+
+  <div class="kpis" id="kpis"></div>
+
+  <section>
+    <h2>Active client risk</h2>
+    <p class="section-sub">Every client billing this month, ranked by risk score. Scoring method is explained at the bottom of the page.</p>
+    <div class="controls">
+      <input type="text" id="search" placeholder="Search company or account manager…">
+      <select id="levelFilter">
+        <option value="">All risk levels</option>
+        <option value="High">High</option>
+        <option value="Medium">Medium</option>
+        <option value="Low">Low</option>
+      </select>
+    </div>
+    <table id="riskTable">
+      <thead>
+        <tr>
+          <th data-key="company_name">Client</th>
+          <th data-key="account_manager">AM</th>
+          <th data-key="risk_level">Risk</th>
+          <th data-key="tenure_months" class="num">Tenure (mo)</th>
+          <th data-key="current_mrr" class="num">MRR</th>
+          <th data-key="satisfaction">Satisfaction</th>
+          <th>Why</th>
+        </tr>
+      </thead>
+      <tbody id="riskBody"></tbody>
+    </table>
+  </section>
+
+  <section>
+    <h2>Status mismatches</h2>
+    <p class="section-sub">Clients whose record says "active" but whose actual billing/role history says otherwise.</p>
+    <div class="mismatch-list" id="mismatchList"></div>
+  </section>
+
+  <section>
+    <h2>Client survival curve</h2>
+    <p class="section-sub">Share of clients still billing at each month of tenure. The steepest drop lands between months 1–6 — this is why the risk score above weights that window so heavily.</p>
+    <div class="chart-box"><svg id="survivalChart" viewBox="0 0 900 260" width="100%"></svg></div>
+  </section>
+
+  <footer id="footer"></footer>
+
+</div>
+
+<script id="tool-data" type="application/json">
+{
+  "summary": {
+    "active_clients": 84,
+    "current_mrr": 509071,
+    "current_gp": 186693,
+    "annualized_gp": 2240316,
+    "monthly_churn_rate": 4.35,
+    "annualized_churn_rate": 29.0,
+    "high_risk": 28,
+    "medium_risk": 48,
+    "low_risk": 8,
+    "status_mismatch_count": 29
+  },
+  "clients": [
+    {
+      "client_id": "C002",
+      "company_name": "Lakeshore Analytics",
+      "tier": "small-business",
+      "account_manager": "AM-3",
+      "tenure_months": 22,
+      "current_mrr": 9500,
+      "current_gp": 4150,
+      "satisfaction": "very-satisfied",
+      "last_touchpoint": "2026-03-19",
+      "status_field": "active",
+      "live_roles": 3,
+      "risk_score": 20,
+      "risk_level": "Medium",
+      "risk_factors": [
+        "No contact in 165d"
+      ]
+    },
+    {
+      "client_id": "C003",
+      "company_name": "Quarry Analytics",
+      "tier": "small-business",
+      "account_manager": "AM-1",
+      "tenure_months": 17,
+      "current_mrr": 2500,
+      "current_gp": 700,
+      "satisfaction": "dissatisfied",
+      "last_touchpoint": "2025-08-13",
+      "status_field": "active",
+      "live_roles": 1,
+      "risk_score": 50,
+      "risk_level": "High",
+      "risk_factors": [
+        "Dissatisfied (latest rating)",
+        "No contact in 383d"
+      ]
+    },
+    {
+      "client_id": "C004",
+      "company_name": "Quarry Collective",
+      "tier": "small-business",
+      "account_manager": "AM-2",
+      "tenure_months": 21,
+      "current_mrr": 76805,
+      "current_gp": 25530,
+      "satisfaction": "very-satisfied",
+      "last_touchpoint": "2026-08-17",
+      "status_field": "active",
+      "live_roles": 25,
+      "risk_score": 20,
+      "risk_level": "Medium",
+      "risk_factors": [
+        "Revenue down 1% vs prior month"
+      ]
+    },
+    {
+      "client_id": "C005",
+      "company_name": "Halcyon Collective",
+      "tier": "small-business",
+      "account_manager": "AM-3",
+      "tenure_months": 18,
+      "current_mrr": 7400,
+      "current_gp": 2500,
+      "satisfaction": "neutral",
+      "last_touchpoint": "2025-12-09",
+      "status_field": "active",
+      "live_roles": 2,
+      "risk_score": 32,
+      "risk_level": "Medium",
+      "risk_factors": [
+        "Neutral satisfaction",
+        "No contact in 265d"
+      ]
+    },
+    {
+      "client_id": "C006",
+      "company_name": "Northwind Digital",
+      "tier": "small-business",
+      "account_manager": "AM-2",
+      "tenure_months": 23,
+      "current_mrr": 12800,
+      "current_gp": 3200,
+      "satisfaction": "satisfied",
+      "last_touchpoint": "2025-12-24",
+      "status_field": "active",
+      "live_roles": 7,
+      "risk_score": 40,
+      "risk_level": "Medium",
+      "risk_factors": [
+        "No contact in 250d",
+        "Revenue down 24% vs prior month"
+      ]
+    },
+    {
+      "client_id": "C008",
+      "company_name": "Stonebridge Studios",
+      "tier": "small-business",
+      "account_manager": "AM-3",
+      "tenure_months": 16,
+      "current_mrr": 13000,
+      "current_gp": 7000,
+      "satisfaction": "satisfied",
+      "last_touchpoint": "2025-12-08",
+      "status_field": "active",
+      "live_roles": 5,
+      "risk_score": 20,
+      "risk_level": "Medium",
+      "risk_factors": [
+        "No contact in 266d"
+      ]
+    },
+    {
+      "client_id": "C010",
+      "company_name": "Northwind Studios",
+      "tier": "small-business",
+      "account_manager": "AM-1",
+      "tenure_months": 16,
+      "current_mrr": 25550,
+      "current_gp": 7400,
+      "satisfaction": "very-satisfied",
+      "last_touchpoint": "2026-01-09",
+      "status_field": "active",
+      "live_roles": 5,
+      "risk_score": 20,
+      "risk_level": "Medium",
+      "risk_factors": [
+        "No contact in 234d"
+      ]
+    },
+    {
+      "client_id": "C011",
+      "company_name": "Foxglove Analytics",
+      "tier": "small-business",
+      "account_manager": "AM-5",
+      "tenure_months": 15,
+      "current_mrr": 26900,
+      "current_gp": 10100,
+      "satisfaction": "very-satisfied",
+      "last_touchpoint": "2026-01-19",
+      "status_field": "active",
+      "live_roles": 10,
+      "risk_score": 40,
+      "risk_level": "Medium",
+      "risk_factors": [
+        "No contact in 224d",
+        "Revenue down 9% vs prior month"
+      ]
+    },
+    {
+      "client_id": "C012",
+      "company_name": "Stonebridge Digital",
+      "tier": "small-business",
+      "account_manager": "AM-2",
+      "tenure_months": 16,
+      "current_mrr": 1700,
+      "current_gp": 700,
+      "satisfaction": "satisfied",
+      "last_touchpoint": "2025-12-23",
+      "status_field": "active",
+      "live_roles": 1,
+      "risk_score": 20,
+      "risk_level": "Medium",
+      "risk_factors": [
+        "No contact in 251d"
+      ]
+    },
+    {
+      "client_id": "C013",
+      "company_name": "Saltgrass Systems",
+      "tier": "small-business",
+      "account_manager": "AM-3",
+      "tenure_months": 12,
+      "current_mrr": 10550,
+      "current_gp": 3550,
+      "satisfaction": "satisfied",
+      "last_touchpoint": "2026-08-24",
+      "status_field": "active",
+      "live_roles": 1,
+      "risk_score": 0,
+      "risk_level": "Low",
+      "risk_factors": []
+    },
+    {
+      "client_id": "C014",
+      "company_name": "Northgate Studios",
+      "tier": "small-business",
+      "account_manager": "AM-3",
+      "tenure_months": 16,
+      "current_mrr": 6000,
+      "current_gp": 3000,
+      "satisfaction": "very-satisfied",
+      "last_touchpoint": "2026-03-19",
+      "status_field": "active",
+      "live_roles": 2,
+      "risk_score": 20,
+      "risk_level": "Medium",
+      "risk_factors": [
+        "No contact in 165d"
+      ]
+    },
+    {
+      "client_id": "C016",
+      "company_name": "Westbrook Systems",
+      "tier": "small-business",
+      "account_manager": "AM-3",
+      "tenure_months": 17,
+      "current_mrr": 625,
+      "current_gp": 175,
+      "satisfaction": "very-satisfied",
+      "last_touchpoint": "2025-12-08",
+      "status_field": "active",
+      "live_roles": 1,
+      "risk_score": 20,
+      "risk_level": "Medium",
+      "risk_factors": [
+        "No contact in 266d"
+      ]
+    },
+    {
+      "client_id": "C020",
+      "company_name": "Maplecrest Collective",
+      "tier": "small-business",
+      "account_manager": "AM-3",
+      "tenure_months": 19,
+      "current_mrr": 2525,
+      "current_gp": 1025,
+      "satisfaction": "satisfied",
+      "last_touchpoint": "2026-04-13",
+      "status_field": "active",
+      "live_roles": 1,
+      "risk_score": 20,
+      "risk_level": "Medium",
+      "risk_factors": [
+        "No contact in 140d"
+      ]
+    },
+    {
+      "client_id": "C027",
+      "company_name": "Eastvale Digital",
+      "tier": "small-business",
+      "account_manager": "AM-3",
+      "tenure_months": 20,
+      "current_mrr": 3000,
+      "current_gp": 1400,
+      "satisfaction": "satisfied",
+      "last_touchpoint": "2026-03-20",
+      "status_field": "active",
+      "live_roles": 1,
+      "risk_score": 20,
+      "risk_level": "Medium",
+      "risk_factors": [
+        "No contact in 164d"
+      ]
+    },
+    {
+      "client_id": "C029",
+      "company_name": "Harborview Digital",
+      "tier": "small-business",
+      "account_manager": "AM-3",
+      "tenure_months": 18,
+      "current_mrr": 2500,
+      "current_gp": 1000,
+      "satisfaction": "satisfied",
+      "last_touchpoint": "2026-03-19",
+      "status_field": "active",
+      "live_roles": 1,
+      "risk_score": 20,
+      "risk_level": "Medium",
+      "risk_factors": [
+        "No contact in 165d"
+      ]
+    },
+    {
+      "client_id": "C034",
+      "company_name": "Pinnacle Collective",
+      "tier": "small-business",
+      "account_manager": "AM-3",
+      "tenure_months": 20,
+      "current_mrr": 3000,
+      "current_gp": 1500,
+      "satisfaction": "very-satisfied",
+      "last_touchpoint": "2025-12-08",
+      "status_field": "active",
+      "live_roles": 1,
+      "risk_score": 20,
+      "risk_level": "Medium",
+      "risk_factors": [
+        "No contact in 266d"
+      ]
+    },
+    {
+      "client_id": "C040",
+      "company_name": "Halcyon Systems",
+      "tier": "small-business",
+      "account_manager": "AM-3",
+      "tenure_months": 17,
+      "current_mrr": 9600,
+      "current_gp": 3900,
+      "satisfaction": "neutral",
+      "last_touchpoint": "2026-07-21",
+      "status_field": "active",
+      "live_roles": 3,
+      "risk_score": 12,
+      "risk_level": "Low",
+      "risk_factors": [
+        "Neutral satisfaction"
+      ]
+    },
+    {
+      "client_id": "C041",
+      "company_name": "Brightline Collective",
+      "tier": "small-business",
+      "account_manager": "AM-3",
+      "tenure_months": 21,
+      "current_mrr": 3000,
+      "current_gp": 1000,
+      "satisfaction": "satisfied",
+      "last_touchpoint": "2026-03-19",
+      "status_field": "active",
+      "live_roles": 1,
+      "risk_score": 20,
+      "risk_level": "Medium",
+      "risk_factors": [
+        "No contact in 165d"
+      ]
+    },
+    {
+      "client_id": "C044",
+      "company_name": "Timberline Brands",
+      "tier": "small-business",
+      "account_manager": "AM-3",
+      "tenure_months": 16,
+      "current_mrr": 1500,
+      "current_gp": 600,
+      "satisfaction": "satisfied",
+      "last_touchpoint": "2026-01-02",
+      "status_field": "active",
+      "live_roles": 1,
+      "risk_score": 20,
+      "risk_level": "Medium",
+      "risk_factors": [
+        "No contact in 241d"
+      ]
+    },
+    {
+      "client_id": "C046",
+      "company_name": "Oakfield Digital",
+      "tier": "small-business",
+      "account_manager": "AM-2",
+      "tenure_months": 17,
+      "current_mrr": 10000,
+      "current_gp": 3000,
+      "satisfaction": "satisfied",
+      "last_touchpoint": "2026-06-15",
+      "status_field": "active",
+      "live_roles": 3,
+      "risk_score": 10,
+      "risk_level": "Low",
+      "risk_factors": [
+        "No contact in 77d"
+      ]
+    },
+    {
+      "client_id": "C052",
+      "company_name": "Foxglove Digital",
+      "tier": "small-business",
+      "account_manager": "AM-2",
+      "tenure_months": 15,
+      "current_mrr": 13175,
+      "current_gp": 5400,
+      "satisfaction": "very-satisfied",
+      "last_touchpoint": "2026-08-26",
+      "status_field": "active",
+      "live_roles": 5,
+      "risk_score": 20,
+      "risk_level": "Medium",
+      "risk_factors": [
+        "Revenue down 4% vs prior month"
+      ]
+    },
+    {
+      "client_id": "C053",
+      "company_name": "Larkspur Collective",
+      "tier": "small-business",
+      "account_manager": "AM-1",
+      "tenure_months": 15,
+      "current_mrr": 2500,
+      "current_gp": 1000,
+      "satisfaction": "satisfied",
+      "last_touchpoint": "2025-12-08",
+      "status_field": "active",
+      "live_roles": 1,
+      "risk_score": 20,
+      "risk_level": "Medium",
+      "risk_factors": [
+        "No contact in 266d"
+      ]
+    },
+    {
+      "client_id": "C054",
+      "company_name": "Larkspur Analytics",
+      "tier": "small-business",
+      "account_manager": "AM-2",
+      "tenure_months": 15,
+      "current_mrr": 7105,
+      "current_gp": 1855,
+      "satisfaction": "very-satisfied",
+      "last_touchpoint": "2026-08-28",
+      "status_field": "active",
+      "live_roles": 2,
+      "risk_score": 0,
+      "risk_level": "Low",
+      "risk_factors": []
+    },
+    {
+      "client_id": "C056",
+      "company_name": "Waverly Brands",
+      "tier": "small-business",
+      "account_manager": "AM-5",
+      "tenure_months": 14,
+      "current_mrr": 3250,
+      "current_gp": 1250,
+      "satisfaction": "very-satisfied",
+      "last_touchpoint": "2025-07-07",
+      "status_field": "active",
+      "live_roles": 1,
+      "risk_score": 20,
+      "risk_level": "Medium",
+      "risk_factors": [
+        "No contact in 420d"
+      ]
+    },
+    {
+      "client_id": "C058",
+      "company_name": "Northgate Brands",
+      "tier": "small-business",
+      "account_manager": "AM-3",
+      "tenure_months": 14,
+      "current_mrr": 5500,
+      "current_gp": 2500,
+      "satisfaction": "satisfied",
+      "last_touchpoint": "2026-06-16",
+      "status_field": "active",
+      "live_roles": 2,
+      "risk_score": 10,
+      "risk_level": "Low",
+      "risk_factors": [
+        "No contact in 76d"
+      ]
+    },
+    {
+      "client_id": "C059",
+      "company_name": "Northwind Brands",
+      "tier": "small-business",
+      "account_manager": "AM-2",
+      "tenure_months": 11,
+      "current_mrr": 2700,
+      "current_gp": 1000,
+      "satisfaction": "satisfied",
+      "last_touchpoint": "2025-10-07",
+      "status_field": "active",
+      "live_roles": 1,
+      "risk_score": 20,
+      "risk_level": "Medium",
+      "risk_factors": [
+        "No contact in 328d"
+      ]
+    },
+    {
+      "client_id": "C060",
+      "company_name": "Eastvale Collective",
+      "tier": "enterprise",
+      "account_manager": "AM-3",
+      "tenure_months": 13,
+      "current_mrr": 3000,
+      "current_gp": 1200,
+      "satisfaction": "very-satisfied",
+      "last_touchpoint": "2025-12-04",
+      "status_field": "active",
+      "live_roles": 1,
+      "risk_score": 20,
+      "risk_level": "Medium",
+      "risk_factors": [
+        "No contact in 270d"
+      ]
+    },
+    {
+      "client_id": "C061",
+      "company_name": "Goldcrest Studios",
+      "tier": "small-business",
+      "account_manager": "AM-2",
+      "tenure_months": 13,
+      "current_mrr": 3400,
+      "current_gp": 1400,
+      "satisfaction": "satisfied",
+      "last_touchpoint": "2026-01-07",
+      "status_field": "active",
+      "live_roles": 2,
+      "risk_score": 20,
+      "risk_level": "Medium",
+      "risk_factors": [
+        "No contact in 236d"
+      ]
+    },
+    {
+      "client_id": "C065",
+      "company_name": "Amberfield Systems",
+      "tier": "small-business",
+      "account_manager": "AM-2",
+      "tenure_months": 13,
+      "current_mrr": 2500,
+      "current_gp": 1250,
+      "satisfaction": "satisfied",
+      "last_touchpoint": "2025-12-22",
+      "status_field": "active",
+      "live_roles": 1,
+      "risk_score": 20,
+      "risk_level": "Medium",
+      "risk_factors": [
+        "No contact in 252d"
+      ]
+    },
+    {
+      "client_id": "C068",
+      "company_name": "Ridgeway Systems",
+      "tier": "small-business",
+      "account_manager": "AM-3",
+      "tenure_months": 12,
+      "current_mrr": 3000,
+      "current_gp": 1000,
+      "satisfaction": "neutral",
+      "last_touchpoint": "2026-07-21",
+      "status_field": "active",
+      "live_roles": 1,
+      "risk_score": 12,
+      "risk_level": "Low",
+      "risk_factors": [
+        "Neutral satisfaction"
+      ]
+    },
+    {
+      "client_id": "C070",
+      "company_name": "Stonebridge Logistics",
+      "tier": "enterprise",
+      "account_manager": "AM-5",
+      "tenure_months": 17,
+      "current_mrr": 33450,
+      "current_gp": 9892,
+      "satisfaction": "satisfied",
+      "last_touchpoint": "2025-12-19",
+      "status_field": "active",
+      "live_roles": 13,
+      "risk_score": 20,
+      "risk_level": "Medium",
+      "risk_factors": [
+        "No contact in 255d"
+      ]
+    },
+    {
+      "client_id": "C071",
+      "company_name": "Pinnacle Brands",
+      "tier": "enterprise",
+      "account_manager": "AM-3",
+      "tenure_months": 12,
+      "current_mrr": 2500,
+      "current_gp": 1200,
+      "satisfaction": "neutral",
+      "last_touchpoint": "2026-04-13",
+      "status_field": "recruiting",
+      "live_roles": 1,
+      "risk_score": 32,
+      "risk_level": "Medium",
+      "risk_factors": [
+        "Neutral satisfaction",
+        "No contact in 140d"
+      ]
+    },
+    {
+      "client_id": "C079",
+      "company_name": "Palisade Collective",
+      "tier": "small-business",
+      "account_manager": "AM-3",
+      "tenure_months": 13,
+      "current_mrr": 1000,
+      "current_gp": 400,
+      "satisfaction": "satisfied",
+      "last_touchpoint": "2025-12-11",
+      "status_field": "active",
+      "live_roles": 1,
+      "risk_score": 20,
+      "risk_level": "Medium",
+      "risk_factors": [
+        "No contact in 263d"
+      ]
+    },
+    {
+      "client_id": "C081",
+      "company_name": "Amberfield Brands",
+      "tier": "small-business",
+      "account_manager": "AM-3",
+      "tenure_months": 13,
+      "current_mrr": 450,
+      "current_gp": 100,
+      "satisfaction": "neutral",
+      "last_touchpoint": "2025-10-07",
+      "status_field": "active",
+      "live_roles": 1,
+      "risk_score": 32,
+      "risk_level": "Medium",
+      "risk_factors": [
+        "Neutral satisfaction",
+        "No contact in 328d"
+      ]
+    },
+    {
+      "client_id": "C082",
+      "company_name": "Brightline Logistics",
+      "tier": "small-business",
+      "account_manager": "AM-3",
+      "tenure_months": 2,
+      "current_mrr": 2500,
+      "current_gp": 1000,
+      "satisfaction": "satisfied",
+      "last_touchpoint": "2026-07-31",
+      "status_field": "active",
+      "live_roles": 1,
+      "risk_score": 30,
+      "risk_level": "Medium",
+      "risk_factors": [
+        "In peak churn window (2 mo tenure)"
+      ]
+    },
+    {
+      "client_id": "C095",
+      "company_name": "Bluestone Studios",
+      "tier": "small-business",
+      "account_manager": "AM-5",
+      "tenure_months": 6,
+      "current_mrr": 3000,
+      "current_gp": 1000,
+      "satisfaction": "neutral",
+      "last_touchpoint": null,
+      "status_field": "active",
+      "live_roles": 1,
+      "risk_score": 57,
+      "risk_level": "High",
+      "risk_factors": [
+        "In peak churn window (6 mo tenure)",
+        "Neutral satisfaction",
+        "No touchpoint on record"
+      ]
+    },
+    {
+      "client_id": "C097",
+      "company_name": "Copperline Brands",
+      "tier": "small-business",
+      "account_manager": "AM-2",
+      "tenure_months": 12,
+      "current_mrr": 2500,
+      "current_gp": 1000,
+      "satisfaction": "satisfied",
+      "last_touchpoint": "2025-12-08",
+      "status_field": "active",
+      "live_roles": 1,
+      "risk_score": 20,
+      "risk_level": "Medium",
+      "risk_factors": [
+        "No contact in 266d"
+      ]
+    },
+    {
+      "client_id": "C098",
+      "company_name": "Kingsley Systems",
+      "tier": "small-business",
+      "account_manager": "AM-2",
+      "tenure_months": 12,
+      "current_mrr": 2500,
+      "current_gp": 1150,
+      "satisfaction": "satisfied",
+      "last_touchpoint": "2026-03-25",
+      "status_field": "active",
+      "live_roles": 1,
+      "risk_score": 20,
+      "risk_level": "Medium",
+      "risk_factors": [
+        "No contact in 159d"
+      ]
+    },
+    {
+      "client_id": "C099",
+      "company_name": "Pinnacle Digital",
+      "tier": "small-business",
+      "account_manager": "AM-3",
+      "tenure_months": 12,
+      "current_mrr": 2000,
+      "current_gp": 1000,
+      "satisfaction": "satisfied",
+      "last_touchpoint": "2026-01-19",
+      "status_field": "active",
+      "live_roles": 1,
+      "risk_score": 40,
+      "risk_level": "Medium",
+      "risk_factors": [
+        "No contact in 224d",
+        "Revenue down 50% vs prior month"
+      ]
+    },
+    {
+      "client_id": "C103",
+      "company_name": "Oakfield Brands",
+      "tier": "small-business",
+      "account_manager": "AM-2",
+      "tenure_months": 4,
+      "current_mrr": 2800,
+      "current_gp": 1150,
+      "satisfaction": "neutral",
+      "last_touchpoint": "2025-12-06",
+      "status_field": "active",
+      "live_roles": 1,
+      "risk_score": 62,
+      "risk_level": "High",
+      "risk_factors": [
+        "In peak churn window (4 mo tenure)",
+        "Neutral satisfaction",
+        "No contact in 268d"
+      ]
+    },
+    {
+      "client_id": "C105",
+      "company_name": "Silverpine Brands",
+      "tier": "mid-market",
+      "account_manager": "AM-5",
+      "tenure_months": 11,
+      "current_mrr": 4900,
+      "current_gp": 2200,
+      "satisfaction": "neutral",
+      "last_touchpoint": "2026-05-05",
+      "status_field": "active",
+      "live_roles": 2,
+      "risk_score": 32,
+      "risk_level": "Medium",
+      "risk_factors": [
+        "Neutral satisfaction",
+        "No contact in 118d"
+      ]
+    },
+    {
+      "client_id": "C106",
+      "company_name": "Amberfield Logistics",
+      "tier": "small-business",
+      "account_manager": "AM-3",
+      "tenure_months": 11,
+      "current_mrr": 4500,
+      "current_gp": 2000,
+      "satisfaction": "neutral",
+      "last_touchpoint": "2025-11-26",
+      "status_field": "active",
+      "live_roles": 1,
+      "risk_score": 32,
+      "risk_level": "Medium",
+      "risk_factors": [
+        "Neutral satisfaction",
+        "No contact in 278d"
+      ]
+    },
+    {
+      "client_id": "C110",
+      "company_name": "Opaline Collective",
+      "tier": "small-business",
+      "account_manager": "AM-2",
+      "tenure_months": 8,
+      "current_mrr": 9950,
+      "current_gp": 2950,
+      "satisfaction": "neutral",
+      "last_touchpoint": "2026-08-28",
+      "status_field": "active",
+      "live_roles": 3,
+      "risk_score": 32,
+      "risk_level": "Medium",
+      "risk_factors": [
+        "Neutral satisfaction",
+        "Revenue down 27% vs prior month"
+      ]
+    },
+    {
+      "client_id": "C117",
+      "company_name": "Quarry Studios",
+      "tier": "small-business",
+      "account_manager": "AM-2",
+      "tenure_months": 10,
+      "current_mrr": 2700,
+      "current_gp": 1200,
+      "satisfaction": "neutral",
+      "last_touchpoint": "2026-01-09",
+      "status_field": "active",
+      "live_roles": 1,
+      "risk_score": 32,
+      "risk_level": "Medium",
+      "risk_factors": [
+        "Neutral satisfaction",
+        "No contact in 234d"
+      ]
+    },
+    {
+      "client_id": "C120",
+      "company_name": "Stonebridge Analytics",
+      "tier": "small-business",
+      "account_manager": "AM-6",
+      "tenure_months": 10,
+      "current_mrr": 8536,
+      "current_gp": 2216,
+      "satisfaction": "neutral",
+      "last_touchpoint": "2026-01-07",
+      "status_field": "active",
+      "live_roles": 6,
+      "risk_score": 32,
+      "risk_level": "Medium",
+      "risk_factors": [
+        "Neutral satisfaction",
+        "No contact in 236d"
+      ]
+    },
+    {
+      "client_id": "C121",
+      "company_name": "Oakfield Studios",
+      "tier": "small-business",
+      "account_manager": "AM-2",
+      "tenure_months": 10,
+      "current_mrr": 2200,
+      "current_gp": 700,
+      "satisfaction": "neutral",
+      "last_touchpoint": "2026-05-13",
+      "status_field": "recruiting",
+      "live_roles": 1,
+      "risk_score": 32,
+      "risk_level": "Medium",
+      "risk_factors": [
+        "Neutral satisfaction",
+        "No contact in 110d"
+      ]
+    },
+    {
+      "client_id": "C122",
+      "company_name": "Meridian Systems",
+      "tier": "small-business",
+      "account_manager": "AM-3",
+      "tenure_months": 10,
+      "current_mrr": 2800,
+      "current_gp": 800,
+      "satisfaction": "neutral",
+      "last_touchpoint": "2025-12-22",
+      "status_field": "recruiting",
+      "live_roles": 1,
+      "risk_score": 32,
+      "risk_level": "Medium",
+      "risk_factors": [
+        "Neutral satisfaction",
+        "No contact in 252d"
+      ]
+    },
+    {
+      "client_id": "C123",
+      "company_name": "Saltgrass Brands",
+      "tier": "small-business",
+      "account_manager": "AM-2",
+      "tenure_months": 10,
+      "current_mrr": 2300,
+      "current_gp": 800,
+      "satisfaction": "neutral",
+      "last_touchpoint": "2026-01-08",
+      "status_field": "recruiting",
+      "live_roles": 1,
+      "risk_score": 32,
+      "risk_level": "Medium",
+      "risk_factors": [
+        "Neutral satisfaction",
+        "No contact in 235d"
+      ]
+    },
+    {
+      "client_id": "C126",
+      "company_name": "Westbrook Analytics",
+      "tier": "small-business",
+      "account_manager": "AM-3",
+      "tenure_months": 10,
+      "current_mrr": 5500,
+      "current_gp": 2000,
+      "satisfaction": "neutral",
+      "last_touchpoint": "2026-08-28",
+      "status_field": "recruiting",
+      "live_roles": 2,
+      "risk_score": 12,
+      "risk_level": "Low",
+      "risk_factors": [
+        "Neutral satisfaction"
+      ]
+    },
+    {
+      "client_id": "C133",
+      "company_name": "Lakeshore Logistics",
+      "tier": "small-business",
+      "account_manager": "AM-2",
+      "tenure_months": 9,
+      "current_mrr": 1800,
+      "current_gp": 600,
+      "satisfaction": "neutral",
+      "last_touchpoint": "2025-12-28",
+      "status_field": "recruiting",
+      "live_roles": 0,
+      "risk_score": 57,
+      "risk_level": "High",
+      "risk_factors": [
+        "Neutral satisfaction",
+        "No contact in 246d",
+        "No role currently in 'active' status"
+      ]
+    },
+    {
+      "client_id": "C137",
+      "company_name": "Westbrook Brands",
+      "tier": "small-business",
+      "account_manager": "AM-2",
+      "tenure_months": 8,
+      "current_mrr": 2500,
+      "current_gp": 1300,
+      "satisfaction": "neutral",
+      "last_touchpoint": "2025-12-19",
+      "status_field": "recruiting",
+      "live_roles": 1,
+      "risk_score": 32,
+      "risk_level": "Medium",
+      "risk_factors": [
+        "Neutral satisfaction",
+        "No contact in 255d"
+      ]
+    },
+    {
+      "client_id": "C141",
+      "company_name": "Crestway Collective",
+      "tier": "small-business",
+      "account_manager": "AM-3",
+      "tenure_months": 8,
+      "current_mrr": 2500,
+      "current_gp": 700,
+      "satisfaction": "neutral",
+      "last_touchpoint": "2026-08-28",
+      "status_field": "recruiting",
+      "live_roles": 1,
+      "risk_score": 12,
+      "risk_level": "Low",
+      "risk_factors": [
+        "Neutral satisfaction"
+      ]
+    },
+    {
+      "client_id": "C151",
+      "company_name": "Timberline Studios",
+      "tier": "small-business",
+      "account_manager": "AM-2",
+      "tenure_months": 7,
+      "current_mrr": 2250,
+      "current_gp": 1000,
+      "satisfaction": "neutral",
+      "last_touchpoint": null,
+      "status_field": "recruiting",
+      "live_roles": 1,
+      "risk_score": 27,
+      "risk_level": "Medium",
+      "risk_factors": [
+        "Neutral satisfaction",
+        "No touchpoint on record"
+      ]
+    },
+    {
+      "client_id": "C152",
+      "company_name": "Crestway Digital",
+      "tier": "small-business",
+      "account_manager": "AM-3",
+      "tenure_months": 6,
+      "current_mrr": 3000,
+      "current_gp": 1300,
+      "satisfaction": "neutral",
+      "last_touchpoint": null,
+      "status_field": "recruiting",
+      "live_roles": 1,
+      "risk_score": 77,
+      "risk_level": "High",
+      "risk_factors": [
+        "In peak churn window (6 mo tenure)",
+        "Neutral satisfaction",
+        "No touchpoint on record",
+        "Revenue down 45% vs prior month"
+      ]
+    },
+    {
+      "client_id": "C153",
+      "company_name": "Copperline Collective",
+      "tier": "small-business",
+      "account_manager": "AM-2",
+      "tenure_months": 7,
+      "current_mrr": 3000,
+      "current_gp": 1000,
+      "satisfaction": "neutral",
+      "last_touchpoint": null,
+      "status_field": "recruiting",
+      "live_roles": 1,
+      "risk_score": 27,
+      "risk_level": "Medium",
+      "risk_factors": [
+        "Neutral satisfaction",
+        "No touchpoint on record"
+      ]
+    },
+    {
+      "client_id": "C156",
+      "company_name": "Goldcrest Systems",
+      "tier": "small-business",
+      "account_manager": "AM-2",
+      "tenure_months": 7,
+      "current_mrr": 2500,
+      "current_gp": 900,
+      "satisfaction": "neutral",
+      "last_touchpoint": null,
+      "status_field": "recruiting",
+      "live_roles": 1,
+      "risk_score": 27,
+      "risk_level": "Medium",
+      "risk_factors": [
+        "Neutral satisfaction",
+        "No touchpoint on record"
+      ]
+    },
+    {
+      "client_id": "C157",
+      "company_name": "Bluestone Digital",
+      "tier": "small-business",
+      "account_manager": "AM-2",
+      "tenure_months": 7,
+      "current_mrr": 4000,
+      "current_gp": 1200,
+      "satisfaction": "neutral",
+      "last_touchpoint": null,
+      "status_field": "recruiting",
+      "live_roles": 1,
+      "risk_score": 27,
+      "risk_level": "Medium",
+      "risk_factors": [
+        "Neutral satisfaction",
+        "No touchpoint on record"
+      ]
+    },
+    {
+      "client_id": "C165",
+      "company_name": "Seacliff Analytics",
+      "tier": "small-business",
+      "account_manager": "AM-2",
+      "tenure_months": 6,
+      "current_mrr": 4000,
+      "current_gp": 1000,
+      "satisfaction": "neutral",
+      "last_touchpoint": null,
+      "status_field": "active",
+      "live_roles": 1,
+      "risk_score": 57,
+      "risk_level": "High",
+      "risk_factors": [
+        "In peak churn window (6 mo tenure)",
+        "Neutral satisfaction",
+        "No touchpoint on record"
+      ]
+    },
+    {
+      "client_id": "C173",
+      "company_name": "Ironwood Collective",
+      "tier": "small-business",
+      "account_manager": "Unassigned",
+      "tenure_months": 5,
+      "current_mrr": 2250,
+      "current_gp": 950,
+      "satisfaction": "neutral",
+      "last_touchpoint": null,
+      "status_field": "recruiting",
+      "live_roles": 1,
+      "risk_score": 57,
+      "risk_level": "High",
+      "risk_factors": [
+        "In peak churn window (5 mo tenure)",
+        "Neutral satisfaction",
+        "No touchpoint on record"
+      ]
+    },
+    {
+      "client_id": "C174",
+      "company_name": "Brightline Studios",
+      "tier": "small-business",
+      "account_manager": "Unassigned",
+      "tenure_months": 4,
+      "current_mrr": 4700,
+      "current_gp": 2400,
+      "satisfaction": "neutral",
+      "last_touchpoint": null,
+      "status_field": "recruiting",
+      "live_roles": 2,
+      "risk_score": 57,
+      "risk_level": "High",
+      "risk_factors": [
+        "In peak churn window (4 mo tenure)",
+        "Neutral satisfaction",
+        "No touchpoint on record"
+      ]
+    },
+    {
+      "client_id": "C177",
+      "company_name": "Oakfield Analytics",
+      "tier": "small-business",
+      "account_manager": "Unassigned",
+      "tenure_months": 3,
+      "current_mrr": 7000,
+      "current_gp": 2500,
+      "satisfaction": "neutral",
+      "last_touchpoint": null,
+      "status_field": "recruiting",
+      "live_roles": 2,
+      "risk_score": 57,
+      "risk_level": "High",
+      "risk_factors": [
+        "In peak churn window (3 mo tenure)",
+        "Neutral satisfaction",
+        "No touchpoint on record"
+      ]
+    },
+    {
+      "client_id": "C179",
+      "company_name": "Brightline Analytics",
+      "tier": "small-business",
+      "account_manager": "Unassigned",
+      "tenure_months": 4,
+      "current_mrr": 2750,
+      "current_gp": 1150,
+      "satisfaction": "neutral",
+      "last_touchpoint": null,
+      "status_field": "recruiting",
+      "live_roles": 1,
+      "risk_score": 57,
+      "risk_level": "High",
+      "risk_factors": [
+        "In peak churn window (4 mo tenure)",
+        "Neutral satisfaction",
+        "No touchpoint on record"
+      ]
+    },
+    {
+      "client_id": "C180",
+      "company_name": "Thornhill Digital",
+      "tier": "small-business",
+      "account_manager": "Unassigned",
+      "tenure_months": 3,
+      "current_mrr": 2700,
+      "current_gp": 900,
+      "satisfaction": "neutral",
+      "last_touchpoint": null,
+      "status_field": "recruiting",
+      "live_roles": 1,
+      "risk_score": 57,
+      "risk_level": "High",
+      "risk_factors": [
+        "In peak churn window (3 mo tenure)",
+        "Neutral satisfaction",
+        "No touchpoint on record"
+      ]
+    },
+    {
+      "client_id": "C181",
+      "company_name": "Foxglove Collective",
+      "tier": "small-business",
+      "account_manager": "Unassigned",
+      "tenure_months": 4,
+      "current_mrr": 4500,
+      "current_gp": 1000,
+      "satisfaction": "neutral",
+      "last_touchpoint": null,
+      "status_field": "recruiting",
+      "live_roles": 1,
+      "risk_score": 57,
+      "risk_level": "High",
+      "risk_factors": [
+        "In peak churn window (4 mo tenure)",
+        "Neutral satisfaction",
+        "No touchpoint on record"
+      ]
+    },
+    {
+      "client_id": "C182",
+      "company_name": "Kingsley Analytics",
+      "tier": "mid-market",
+      "account_manager": "Unassigned",
+      "tenure_months": 3,
+      "current_mrr": 5700,
+      "current_gp": 2900,
+      "satisfaction": "neutral",
+      "last_touchpoint": null,
+      "status_field": "recruiting",
+      "live_roles": 2,
+      "risk_score": 57,
+      "risk_level": "High",
+      "risk_factors": [
+        "In peak churn window (3 mo tenure)",
+        "Neutral satisfaction",
+        "No touchpoint on record"
+      ]
+    },
+    {
+      "client_id": "C183",
+      "company_name": "Waverly Collective",
+      "tier": "small-business",
+      "account_manager": "Unassigned",
+      "tenure_months": 3,
+      "current_mrr": 9200,
+      "current_gp": 3100,
+      "satisfaction": "neutral",
+      "last_touchpoint": null,
+      "status_field": "recruiting",
+      "live_roles": 2,
+      "risk_score": 57,
+      "risk_level": "High",
+      "risk_factors": [
+        "In peak churn window (3 mo tenure)",
+        "Neutral satisfaction",
+        "No touchpoint on record"
+      ]
+    },
+    {
+      "client_id": "C187",
+      "company_name": "Crestway Studios",
+      "tier": "mid-market",
+      "account_manager": "Unassigned",
+      "tenure_months": 3,
+      "current_mrr": 5300,
+      "current_gp": 3200,
+      "satisfaction": "neutral",
+      "last_touchpoint": null,
+      "status_field": "recruiting",
+      "live_roles": 2,
+      "risk_score": 57,
+      "risk_level": "High",
+      "risk_factors": [
+        "In peak churn window (3 mo tenure)",
+        "Neutral satisfaction",
+        "No touchpoint on record"
+      ]
+    },
+    {
+      "client_id": "C188",
+      "company_name": "Meridian Studios",
+      "tier": "small-business",
+      "account_manager": "Unassigned",
+      "tenure_months": 3,
+      "current_mrr": 3000,
+      "current_gp": 1400,
+      "satisfaction": "neutral",
+      "last_touchpoint": null,
+      "status_field": "recruiting",
+      "live_roles": 0,
+      "risk_score": 82,
+      "risk_level": "High",
+      "risk_factors": [
+        "In peak churn window (3 mo tenure)",
+        "Neutral satisfaction",
+        "No touchpoint on record",
+        "No role currently in 'active' status"
+      ]
+    },
+    {
+      "client_id": "C190",
+      "company_name": "Foxglove Brands",
+      "tier": "small-business",
+      "account_manager": "Unassigned",
+      "tenure_months": 3,
+      "current_mrr": 3000,
+      "current_gp": 1400,
+      "satisfaction": "neutral",
+      "last_touchpoint": null,
+      "status_field": "recruiting",
+      "live_roles": 1,
+      "risk_score": 57,
+      "risk_level": "High",
+      "risk_factors": [
+        "In peak churn window (3 mo tenure)",
+        "Neutral satisfaction",
+        "No touchpoint on record"
+      ]
+    },
+    {
+      "client_id": "C193",
+      "company_name": "Ironwood Analytics",
+      "tier": "small-business",
+      "account_manager": "Unassigned",
+      "tenure_months": 3,
+      "current_mrr": 3000,
+      "current_gp": 1200,
+      "satisfaction": "neutral",
+      "last_touchpoint": null,
+      "status_field": "recruiting",
+      "live_roles": 0,
+      "risk_score": 82,
+      "risk_level": "High",
+      "risk_factors": [
+        "In peak churn window (3 mo tenure)",
+        "Neutral satisfaction",
+        "No touchpoint on record",
+        "No role currently in 'active' status"
+      ]
+    },
+    {
+      "client_id": "C194",
+      "company_name": "Thornhill Analytics",
+      "tier": "small-business",
+      "account_manager": "Unassigned",
+      "tenure_months": 2,
+      "current_mrr": 2400,
+      "current_gp": 1000,
+      "satisfaction": "neutral",
+      "last_touchpoint": null,
+      "status_field": "recruiting",
+      "live_roles": 1,
+      "risk_score": 57,
+      "risk_level": "High",
+      "risk_factors": [
+        "In peak churn window (2 mo tenure)",
+        "Neutral satisfaction",
+        "No touchpoint on record"
+      ]
+    },
+    {
+      "client_id": "C195",
+      "company_name": "Halcyon Studios",
+      "tier": "small-business",
+      "account_manager": "Unassigned",
+      "tenure_months": 3,
+      "current_mrr": 2750,
+      "current_gp": 1150,
+      "satisfaction": "neutral",
+      "last_touchpoint": null,
+      "status_field": "recruiting",
+      "live_roles": 0,
+      "risk_score": 82,
+      "risk_level": "High",
+      "risk_factors": [
+        "In peak churn window (3 mo tenure)",
+        "Neutral satisfaction",
+        "No touchpoint on record",
+        "No role currently in 'active' status"
+      ]
+    },
+    {
+      "client_id": "C197",
+      "company_name": "Copperline Logistics",
+      "tier": "small-business",
+      "account_manager": "Unassigned",
+      "tenure_months": 1,
+      "current_mrr": 2400,
+      "current_gp": 1100,
+      "satisfaction": "neutral",
+      "last_touchpoint": null,
+      "status_field": "recruiting",
+      "live_roles": 0,
+      "risk_score": 67,
+      "risk_level": "High",
+      "risk_factors": [
+        "Very new client (<=1 mo)",
+        "Neutral satisfaction",
+        "No touchpoint on record",
+        "No role currently in 'active' status"
+      ]
+    },
+    {
+      "client_id": "C202",
+      "company_name": "Seacliff Brands",
+      "tier": "small-business",
+      "account_manager": "Unassigned",
+      "tenure_months": 1,
+      "current_mrr": 2500,
+      "current_gp": 900,
+      "satisfaction": "neutral",
+      "last_touchpoint": null,
+      "status_field": "recruiting",
+      "live_roles": 0,
+      "risk_score": 67,
+      "risk_level": "High",
+      "risk_factors": [
+        "Very new client (<=1 mo)",
+        "Neutral satisfaction",
+        "No touchpoint on record",
+        "No role currently in 'active' status"
+      ]
+    },
+    {
+      "client_id": "C203",
+      "company_name": "Summit Digital",
+      "tier": "small-business",
+      "account_manager": "Unassigned",
+      "tenure_months": 2,
+      "current_mrr": 2500,
+      "current_gp": 1100,
+      "satisfaction": "neutral",
+      "last_touchpoint": null,
+      "status_field": "recruiting",
+      "live_roles": 1,
+      "risk_score": 57,
+      "risk_level": "High",
+      "risk_factors": [
+        "In peak churn window (2 mo tenure)",
+        "Neutral satisfaction",
+        "No touchpoint on record"
+      ]
+    },
+    {
+      "client_id": "C204",
+      "company_name": "Meridian Brands",
+      "tier": "small-business",
+      "account_manager": "Unassigned",
+      "tenure_months": 2,
+      "current_mrr": 3000,
+      "current_gp": 1000,
+      "satisfaction": "neutral",
+      "last_touchpoint": null,
+      "status_field": "recruiting",
+      "live_roles": 1,
+      "risk_score": 57,
+      "risk_level": "High",
+      "risk_factors": [
+        "In peak churn window (2 mo tenure)",
+        "Neutral satisfaction",
+        "No touchpoint on record"
+      ]
+    },
+    {
+      "client_id": "C205",
+      "company_name": "Redwood Analytics",
+      "tier": "small-business",
+      "account_manager": "Unassigned",
+      "tenure_months": 1,
+      "current_mrr": 2500,
+      "current_gp": 900,
+      "satisfaction": "neutral",
+      "last_touchpoint": null,
+      "status_field": "recruiting",
+      "live_roles": 1,
+      "risk_score": 42,
+      "risk_level": "Medium",
+      "risk_factors": [
+        "Very new client (<=1 mo)",
+        "Neutral satisfaction",
+        "No touchpoint on record"
+      ]
+    },
+    {
+      "client_id": "C206",
+      "company_name": "Cobalt Logistics",
+      "tier": "small-business",
+      "account_manager": "AM-5",
+      "tenure_months": 2,
+      "current_mrr": 3000,
+      "current_gp": 1200,
+      "satisfaction": "neutral",
+      "last_touchpoint": null,
+      "status_field": "active",
+      "live_roles": 1,
+      "risk_score": 57,
+      "risk_level": "High",
+      "risk_factors": [
+        "In peak churn window (2 mo tenure)",
+        "Neutral satisfaction",
+        "No touchpoint on record"
+      ]
+    },
+    {
+      "client_id": "C207",
+      "company_name": "Ridgeway Analytics",
+      "tier": "small-business",
+      "account_manager": "Unassigned",
+      "tenure_months": 2,
+      "current_mrr": 6000,
+      "current_gp": 2400,
+      "satisfaction": "neutral",
+      "last_touchpoint": null,
+      "status_field": "recruiting",
+      "live_roles": 2,
+      "risk_score": 57,
+      "risk_level": "High",
+      "risk_factors": [
+        "In peak churn window (2 mo tenure)",
+        "Neutral satisfaction",
+        "No touchpoint on record"
+      ]
+    },
+    {
+      "client_id": "C210",
+      "company_name": "Halcyon Analytics",
+      "tier": "small-business",
+      "account_manager": "Unassigned",
+      "tenure_months": 1,
+      "current_mrr": 4000,
+      "current_gp": 1000,
+      "satisfaction": "neutral",
+      "last_touchpoint": null,
+      "status_field": "recruiting",
+      "live_roles": 0,
+      "risk_score": 67,
+      "risk_level": "High",
+      "risk_factors": [
+        "Very new client (<=1 mo)",
+        "Neutral satisfaction",
+        "No touchpoint on record",
+        "No role currently in 'active' status"
+      ]
+    },
+    {
+      "client_id": "C211",
+      "company_name": "Clearwater Collective",
+      "tier": "small-business",
+      "account_manager": "Unassigned",
+      "tenure_months": 2,
+      "current_mrr": 20700,
+      "current_gp": 8700,
+      "satisfaction": "neutral",
+      "last_touchpoint": null,
+      "status_field": "recruiting",
+      "live_roles": 7,
+      "risk_score": 57,
+      "risk_level": "High",
+      "risk_factors": [
+        "In peak churn window (2 mo tenure)",
+        "Neutral satisfaction",
+        "No touchpoint on record"
+      ]
+    },
+    {
+      "client_id": "C214",
+      "company_name": "Crestway Systems",
+      "tier": "small-business",
+      "account_manager": "Unassigned",
+      "tenure_months": 1,
+      "current_mrr": 2400,
+      "current_gp": 1100,
+      "satisfaction": "neutral",
+      "last_touchpoint": null,
+      "status_field": "recruiting",
+      "live_roles": 1,
+      "risk_score": 42,
+      "risk_level": "Medium",
+      "risk_factors": [
+        "Very new client (<=1 mo)",
+        "Neutral satisfaction",
+        "No touchpoint on record"
+      ]
+    },
+    {
+      "client_id": "C216",
+      "company_name": "Silverpine Studios",
+      "tier": "small-business",
+      "account_manager": "Unassigned",
+      "tenure_months": 1,
+      "current_mrr": 2700,
+      "current_gp": 1100,
+      "satisfaction": "neutral",
+      "last_touchpoint": null,
+      "status_field": "recruiting",
+      "live_roles": 1,
+      "risk_score": 42,
+      "risk_level": "Medium",
+      "risk_factors": [
+        "Very new client (<=1 mo)",
+        "Neutral satisfaction",
+        "No touchpoint on record"
+      ]
+    },
+    {
+      "client_id": "C219",
+      "company_name": "Seacliff Studios",
+      "tier": "small-business",
+      "account_manager": "Unassigned",
+      "tenure_months": 1,
+      "current_mrr": 2900,
+      "current_gp": 900,
+      "satisfaction": "neutral",
+      "last_touchpoint": null,
+      "status_field": "active",
+      "live_roles": 1,
+      "risk_score": 42,
+      "risk_level": "Medium",
+      "risk_factors": [
+        "Very new client (<=1 mo)",
+        "Neutral satisfaction",
+        "No touchpoint on record"
+      ]
+    }
+  ],
+  "mismatches": [
+    {
+      "client_id": "C037",
+      "company_name": "Clearwater Brands",
+      "account_manager": "AM-5",
+      "issue": "Marked active, has never billed",
+      "any_roles_ever": 0
+    },
+    {
+      "client_id": "C057",
+      "company_name": "Lakeshore Collective",
+      "account_manager": "AM-2",
+      "issue": "Marked active, but stopped billing",
+      "any_roles_ever": 7
+    },
+    {
+      "client_id": "C062",
+      "company_name": "Opaline Brands",
+      "account_manager": "AM-1",
+      "issue": "Marked active, has never billed",
+      "any_roles_ever": 2
+    },
+    {
+      "client_id": "C064",
+      "company_name": "Kingsley Digital",
+      "account_manager": "AM-2",
+      "issue": "Marked active, has never billed",
+      "any_roles_ever": 1
+    },
+    {
+      "client_id": "C067",
+      "company_name": "Rosewood Analytics",
+      "account_manager": "AM-2",
+      "issue": "Marked active, but stopped billing",
+      "any_roles_ever": 2
+    },
+    {
+      "client_id": "C069",
+      "company_name": "Clearwater Digital",
+      "account_manager": "AM-5",
+      "issue": "Marked active, has never billed",
+      "any_roles_ever": 1
+    },
+    {
+      "client_id": "C072",
+      "company_name": "Cobalt Collective",
+      "account_manager": "AM-3",
+      "issue": "Marked active, but stopped billing",
+      "any_roles_ever": 1
+    },
+    {
+      "client_id": "C073",
+      "company_name": "Ironwood Digital",
+      "account_manager": "AM-5",
+      "issue": "Marked active, has never billed",
+      "any_roles_ever": 1
+    },
+    {
+      "client_id": "C078",
+      "company_name": "Rosewood Digital",
+      "account_manager": "AM-5",
+      "issue": "Marked active, has never billed",
+      "any_roles_ever": 1
+    },
+    {
+      "client_id": "C080",
+      "company_name": "Birchwood Digital",
+      "account_manager": "AM-2",
+      "issue": "Marked active, has never billed",
+      "any_roles_ever": 1
+    },
+    {
+      "client_id": "C083",
+      "company_name": "Birchwood Brands",
+      "account_manager": "Unassigned",
+      "issue": "Marked active, has never billed",
+      "any_roles_ever": 1
+    },
+    {
+      "client_id": "C084",
+      "company_name": "Fairwind Studios",
+      "account_manager": "Unassigned",
+      "issue": "Marked active, has never billed",
+      "any_roles_ever": 1
+    },
+    {
+      "client_id": "C085",
+      "company_name": "Waverly Logistics",
+      "account_manager": "AM-5",
+      "issue": "Marked active, has never billed",
+      "any_roles_ever": 1
+    },
+    {
+      "client_id": "C089",
+      "company_name": "Summit Analytics",
+      "account_manager": "AM-1",
+      "issue": "Marked active, has never billed",
+      "any_roles_ever": 1
+    },
+    {
+      "client_id": "C093",
+      "company_name": "Northgate Collective",
+      "account_manager": "AM-2",
+      "issue": "Marked active, has never billed",
+      "any_roles_ever": 1
+    },
+    {
+      "client_id": "C096",
+      "company_name": "Maplecrest Logistics",
+      "account_manager": "AM-5",
+      "issue": "Marked active, has never billed",
+      "any_roles_ever": 5
+    },
+    {
+      "client_id": "C100",
+      "company_name": "Granite Studios",
+      "account_manager": "AM-5",
+      "issue": "Marked active, has never billed",
+      "any_roles_ever": 1
+    },
+    {
+      "client_id": "C101",
+      "company_name": "Waverly Digital",
+      "account_manager": "AM-5",
+      "issue": "Marked active, has never billed",
+      "any_roles_ever": 2
+    },
+    {
+      "client_id": "C102",
+      "company_name": "Harborview Analytics",
+      "account_manager": "AM-1",
+      "issue": "Marked active, has never billed",
+      "any_roles_ever": 2
+    },
+    {
+      "client_id": "C104",
+      "company_name": "Palisade Digital",
+      "account_manager": "AM-1",
+      "issue": "Marked active, has never billed",
+      "any_roles_ever": 1
+    },
+    {
+      "client_id": "C107",
+      "company_name": "Birchwood Logistics",
+      "account_manager": "AM-5",
+      "issue": "Marked active, has never billed",
+      "any_roles_ever": 1
+    },
+    {
+      "client_id": "C108",
+      "company_name": "Thornhill Logistics",
+      "account_manager": "Unassigned",
+      "issue": "Marked active, has never billed",
+      "any_roles_ever": 1
+    },
+    {
+      "client_id": "C109",
+      "company_name": "Goldcrest Logistics",
+      "account_manager": "AM-5",
+      "issue": "Marked active, has never billed",
+      "any_roles_ever": 1
+    },
+    {
+      "client_id": "C111",
+      "company_name": "Palisade Analytics",
+      "account_manager": "AM-1",
+      "issue": "Marked active, has never billed",
+      "any_roles_ever": 1
+    },
+    {
+      "client_id": "C113",
+      "company_name": "Cobalt Systems",
+      "account_manager": "Unassigned",
+      "issue": "Marked active, but stopped billing",
+      "any_roles_ever": 1
+    },
+    {
+      "client_id": "C116",
+      "company_name": "Opaline Systems",
+      "account_manager": "Unassigned",
+      "issue": "Marked active, has never billed",
+      "any_roles_ever": 1
+    },
+    {
+      "client_id": "C140",
+      "company_name": "Seacliff Logistics",
+      "account_manager": "AM-1",
+      "issue": "Marked active, but stopped billing",
+      "any_roles_ever": 1
+    },
+    {
+      "client_id": "C149",
+      "company_name": "Maplecrest Studios",
+      "account_manager": "AM-4",
+      "issue": "Marked active, but stopped billing",
+      "any_roles_ever": 1
+    },
+    {
+      "client_id": "C185",
+      "company_name": "Rosewood Logistics",
+      "account_manager": "Unassigned",
+      "issue": "Marked active, but stopped billing",
+      "any_roles_ever": 1
+    }
+  ],
+  "survival": [
+    {
+      "month": 1,
+      "rate": 100.0,
+      "n": 127
+    },
+    {
+      "month": 2,
+      "rate": 97.5,
+      "n": 120
+    },
+    {
+      "month": 3,
+      "rate": 90.3,
+      "n": 113
+    },
+    {
+      "month": 4,
+      "rate": 83.7,
+      "n": 104
+    },
+    {
+      "month": 5,
+      "rate": 78.6,
+      "n": 98
+    },
+    {
+      "month": 6,
+      "rate": 75.8,
+      "n": 95
+    },
+    {
+      "month": 7,
+      "rate": 76.7,
+      "n": 86
+    },
+    {
+      "month": 8,
+      "rate": 78.5,
+      "n": 79
+    },
+    {
+      "month": 9,
+      "rate": 80.8,
+      "n": 73
+    },
+    {
+      "month": 10,
+      "rate": 79.2,
+      "n": 72
+    },
+    {
+      "month": 11,
+      "rate": 87.7,
+      "n": 57
+    },
+    {
+      "month": 12,
+      "rate": 79.2,
+      "n": 53
+    },
+    {
+      "month": 15,
+      "rate": 80.6,
+      "n": 31
+    },
+    {
+      "month": 18,
+      "rate": 64.3,
+      "n": 14
+    },
+    {
+      "month": 21,
+      "rate": 80.0,
+      "n": 5
+    }
+  ],
+  "generated": "2026-09-02"
+}
+</script>
+<script>
+const DATA = JSON.parse(document.getElementById('tool-data').textContent);
+
+// ---------- KPIs ----------
+const kpiEl = document.getElementById('kpis');
+const s = DATA.summary;
+const kpiItems = [
+  {label:'Active clients', value: s.active_clients},
+  {label:'Monthly gross profit', value: '$'+s.current_gp.toLocaleString()},
+  {label:'Annualized churn rate', value: s.annualized_churn_rate+'%'},
+  {label:'High-risk clients', value: s.high_risk, high:true},
+  {label:'CRM mismatches', value: s.status_mismatch_count, high:true},
+];
+kpiEl.innerHTML = kpiItems.map(k => `
+  <div class="kpi">
+    <div class="num ${k.high?'high':''}">${k.value}</div>
+    <div class="label">${k.label}</div>
+  </div>`).join('');
+
+// ---------- Risk table ----------
+let sortKey = 'risk_score', sortDir = -1;
+const tbody = document.getElementById('riskBody');
+const searchInput = document.getElementById('search');
+const levelSelect = document.getElementById('levelFilter');
+
+function renderTable(){
+  let rows = DATA.clients.slice();
+  const q = searchInput.value.trim().toLowerCase();
+  if(q){
+    rows = rows.filter(r => r.company_name.toLowerCase().includes(q) || (r.account_manager||'').toLowerCase().includes(q));
+  }
+  if(levelSelect.value){
+    rows = rows.filter(r => r.risk_level === levelSelect.value);
+  }
+  rows.sort((a,b) => {
+    let av = a[sortKey], bv = b[sortKey];
+    if(typeof av === 'string'){ av = av.toLowerCase(); bv = (bv||'').toLowerCase(); }
+    if(av < bv) return -1*sortDir;
+    if(av > bv) return 1*sortDir;
+    return b.risk_score - a.risk_score;
+  });
+  tbody.innerHTML = rows.map(r => `
+    <tr>
+      <td>${r.company_name}</td>
+      <td>${r.account_manager}</td>
+      <td><span class="badge ${r.risk_level}">${r.risk_level}</span></td>
+      <td class="num">${r.tenure_months}</td>
+      <td class="num">$${r.current_mrr.toLocaleString()}</td>
+      <td>${r.satisfaction}</td>
+      <td class="factors">${r.risk_factors.length ? r.risk_factors.map(f=>`<span class="factor-tag">${f}</span>`).join('') : '—'}</td>
+    </tr>
+  `).join('');
+}
+Array.prototype.forEach.call(document.querySelectorAll('#riskTable th[data-key]'), function(th){
+  th.addEventListener('click', () => {
+    const k = th.dataset.key;
+    if(sortKey === k){ sortDir *= -1; } else { sortKey = k; sortDir = -1; }
+    renderTable();
+  });
+});
+searchInput.addEventListener('input', renderTable);
+levelSelect.addEventListener('change', renderTable);
+renderTable();
+
+// ---------- Mismatch list ----------
+const mEl = document.getElementById('mismatchList');
+mEl.innerHTML = DATA.mismatches.map(m => `
+  <div class="mismatch-row">
+    <div><span class="company">${m.company_name}</span> <span class="am-tag">${m.account_manager}</span></div>
+    <div class="issue">${m.issue}</div>
+  </div>
+`).join('') || '<div class="mismatch-row">No mismatches found.</div>';
+
+// ---------- Survival chart (simple SVG line) ----------
+const svg = document.getElementById('survivalChart');
+const data = DATA.survival;
+const W = 900, H = 260, PAD = { l: 40, r: 20, t: 20, b: 30 };
+const maxMonth = Math.max(...data.map(d=>d.month));
+const x = m => PAD.l + (m/maxMonth) * (W-PAD.l-PAD.r);
+const y = r => PAD.t + (1 - r/100) * (H-PAD.t-PAD.b);
+let path = data.map((d,i) => `${i===0?'M':'L'} ${x(d.month).toFixed(1)} ${y(d.rate).toFixed(1)}`).join(' ');
+let gridlines = '';
+[0,25,50,75,100].forEach(v => {
+  gridlines += `<line x1="${PAD.l}" x2="${W-PAD.r}" y1="${y(v)}" y2="${y(v)}" stroke="#e6e8e5" stroke-width="1"/>`;
+  gridlines += `<text x="${PAD.l-8}" y="${y(v)+3}" text-anchor="end">${v}%</text>`;
+});
+let xlabels = data.filter((d,i)=> i%2===0 || i===data.length-1).map(d => `<text x="${x(d.month)}" y="${H-8}" text-anchor="middle">${d.month}mo</text>`).join('');
+let dots = data.map(d => `<circle cx="${x(d.month)}" cy="${y(d.rate)}" r="3" fill="#1f5f5b"/>`).join('');
+svg.innerHTML = `${gridlines}<path d="${path}" fill="none" stroke="#1f5f5b" stroke-width="2.5"/>${dots}${xlabels}`;
+
+// ---------- Footer ----------
+document.getElementById('footer').innerHTML = `
+  <p><b>Risk scoring:</b> points added for tenure inside the 2–6 month peak-churn window, dissatisfied/neutral satisfaction, no contact in 60+ days, month-over-month revenue decline, and having no role currently in "active" status. High ≥45, Medium ≥20, else Low.</p>
+`;
+</script>
+</body>
+</html>
